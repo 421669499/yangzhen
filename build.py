@@ -249,5 +249,5 @@ def main() -> None:
     print(f"  看板文件  : index.html / index_share.html（打开即用）")
 
 
-if _name_ == "__main__":
+if __name__ == "__main__":
         main()
