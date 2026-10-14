@@ -1,0 +1,66 @@
+name: 每日涨停跟踪更新
+
+# ─────────────────────────────────────────────────────────────
+# 自动更新说明：
+#   每个工作日 北京时间 17:00（UTC 09:00）自动运行
+#   A股 15:00 收盘，17:00 数据已稳定，避开盘中波动
+#
+#   cron 使用 UTC 时间：
+#     北京时间 17:00  =  UTC 09:00   →  '0 9 * * 1-5'
+#     （1-5 表示周一到周五）
+#
+#   如需改时间，公式：UTC = 北京时间 - 8 小时
+#     北京时间 16:30 → '30 8 * * 1-5'
+#     北京时间 18:00 → '0 10 * * 1-5'
+# ─────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    - cron: '0 9 * * 1-5'
+  # 允许在网页上手动点击运行（Actions 页面 → Run workflow）
+  workflow_dispatch:
+
+# 允许向 gh-pages 分支推送
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖
+        run: pip install requests openpyxl
+
+      - name: 抓取数据并生成分析结果
+        run: python build.py --pages
+
+      - name: 准备发布目录
+        run: |
+          mkdir -p public
+          cp docs/index.html public/index.html
+          echo "构建完成：$(date -u '+%Y-%m-%d %H:%M UTC')" > public/build-info.txt
+
+      - name: 部署到 GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          publish_branch: gh-pages
+          commit_message: "自动更新涨停跟踪看板 $(date -u '+%Y-%m-%d')"
+
+      - name: 保存 Excel 与数据为构建产物（可选下载）
+        uses: actions/upload-artifact@v4
+        with:
+          name: 涨停分析-数据文件
+          path: |
+            output/
+          retention-days: 30
